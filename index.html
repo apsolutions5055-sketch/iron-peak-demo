@@ -990,9 +990,10 @@
         body: JSON.stringify({message})
       });
 
-      const text = await response.text();
+      let text = await response.text();
+      text = text.replace(/LEAD_CAPTURED:.*$/gim, '').trim();
       hideTyping();
-      addMessage(text || "Sorry, I didn't catch that. Try asking again!", 'bot');
+      addMessage(text || "Hmm, not sure about that! Best to call us at (512) 555-0198 👋", 'bot');
     } catch (err) {
       hideTyping();
       addMessage("Hmm, something went wrong. Please call us at (512) 555-0198 for help!", 'bot');

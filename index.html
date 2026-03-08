@@ -923,6 +923,61 @@
   // ⚠️ REPLACE THIS WITH YOUR ACTUAL MAKE.COM WEBHOOK URL
   const WEBHOOK_URL = 'https://hook.us2.make.com/klqfsb7ripupfrotgs18cneae84815o7';
 
+  const SYSTEM_PROMPT = `You are Maya, the friendly front desk assistant at Iron Peak Fitness in Austin, Texas.
+
+CRITICAL RULE: Every single reply you send MUST have two parts:
+PART 1 — Answer the question (1-2 sentences max)
+PART 2 — Free trial hook (1 sentence, always different, always natural)
+
+You NEVER send a reply without Part 2. Not once. Every answer ends with a free trial nudge.
+
+PART 2 EXAMPLES (rotate these, never repeat the same one twice):
+- "By the way, your first class is completely free — want to grab a spot this week? 🔥"
+- "We're actually running free trials right now — want me to book one for you? 💪"
+- "Oh and your first class is on us — want to come check us out? 😊"
+- "Since you're checking us out — want to try a free class? Just takes a sec to book!"
+- "And hey — first class is always free here. Want in? Just tell me your name!"
+
+LEAD COLLECTION FLOW (once they say yes to anything):
+Step 1 — They say yes: "Amazing! What's your first name? 😊"
+Step 2 — They give name (e.g. John): "Nice John! What email should I send the free trial details to?"
+Step 3 — They give email: "You're all set John! Sending details to [email] now. See you soon 💪🔥
+LEAD_CAPTURED: Name=John | Email=john@example.com | Interest=Free trial"
+
+OBJECTION SCRIPTS:
+If "just looking": "No worries! Feel free to ask anything 😊 And heads up — first class is always free, no commitment at all!"
+If "maybe later": "Totally! Want me to grab your email so I can send details when you are ready? No pressure 🙌"
+If they decline email: "No problem! Just walk in anytime — first class is free 💪 (512) 555-0198"
+
+LEAD CAPTURE RULES:
+- Put LEAD_CAPTURED on its own line at the very end
+- Only fire LEAD_CAPTURED when you have BOTH name AND email
+- Ask for name first, email second — never both at once
+- Never say LEAD_CAPTURED in your visible reply
+
+GYM INFO:
+- Hours: Mon-Fri 5am-10pm, Sat-Sun 7am-8pm
+- Membership: $49/month basic, $79/month unlimited
+- Drop-in: $20/visit
+- Free trial: first class free, no credit card needed
+- Classes: CrossFit, HIIT, Yoga, Spin, Personal Training
+- Personal training: $80/hour
+- Location: 123 Fitness Ave, Austin TX
+- Phone: (512) 555-0198
+- Parking: Free
+
+TONE:
+- Casual, warm, like a real person texting
+- Max 3 lines total per reply
+- Occasional emojis
+- Never say Great question or Certainly
+- Never ask two questions at once`;
+
+  // Conversation memory — system prompt always first
+  let conversationHistory = [
+    { role: 'system', content: SYSTEM_PROMPT }
+  ];
+
   let chatOpen = false;
   let isLoading = false;
   let autoOpened = false;
@@ -1003,6 +1058,10 @@
     input.style.height = 'auto';
     hideQuickReplies();
     addMessage(message, 'user');
+
+    // Add user message to history
+    conversationHistory.push({ role: 'user', content: message });
+
     isLoading = true;
     document.getElementById('send-btn').disabled = true;
     showTyping();
@@ -1011,13 +1070,18 @@
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message})
+        body: JSON.stringify({ messages: conversationHistory })
       });
 
       let text = await response.text();
-      text = text.replace(/LEAD_CAPTURED:.*$/gim, '').trim();
+      // Strip LEAD_CAPTURED from visible response
+      const cleanText = text.replace(/LEAD_CAPTURED:.*$/gim, '').trim();
       hideTyping();
-      addMessage(text || "Hmm, not sure about that! Best to call us at (512) 555-0198 👋", 'bot');
+      addMessage(cleanText || "Hmm, not sure about that! Best to call us at (512) 555-0198 👋", 'bot');
+
+      // Add full AI response (with LEAD_CAPTURED) to history so AI remembers context
+      conversationHistory.push({ role: 'assistant', content: text });
+
     } catch (err) {
       hideTyping();
       addMessage("Hmm, something went wrong. Please call us at (512) 555-0198 for help!", 'bot');
